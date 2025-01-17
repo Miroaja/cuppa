@@ -1,3 +1,0 @@
-/home/miroaja/Dev/Personal/Particles/build/CMakeFiles/particles.dir
-/home/miroaja/Dev/Personal/Particles/build/CMakeFiles/edit_cache.dir
-/home/miroaja/Dev/Personal/Particles/build/CMakeFiles/rebuild_cache.dir
