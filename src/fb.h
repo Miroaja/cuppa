@@ -5,55 +5,43 @@
 #include <cstdint>
 #include <cstring>
 #include <cuchar>
+#include <functional>
 #include <iostream>
 #include <limits.h>
 #include <locale>
 #include <ncurses.h>
 #include <ostream>
 #include <string>
+#include <string_view>
 
 template <int W, int H> struct fb {
   inline fb() : _buffer() {}
   inline void print() noexcept {
-    std::cout << "\033[H\033[2J\033[3J\033[?7l";
-
-    wrefresh(stdscr);
     int x, y;
     getmaxyx(stdscr, y, x);
-    x /= 2;
-    y /= 2;
-    x -= W / 2;
-    y -= H / 2;
+    x = (x - W) / 2;
+    y = (y - H) / 2;
 
-    for (int i = 0; i < y; i++) {
-      std::cout << "\n";
+    for (int row = 0; row < H; ++row) {
+      std::wstring wstr(_buffer.begin() + row * W,
+                        _buffer.begin() + (row + 1) * W);
+      mvaddwstr(std::max(y + row, 0), std::max(x, 0), wstr.c_str());
     }
-    std::u32string holder = U"";
-    std::u32string pad(std::max(x, 0), U' ');
-
-    int c = 0;
-    for (auto ch : _buffer) {
-      holder += c % W == 0 ? pad : U"";
-      holder += ch;
-      holder += c++ % W == W - 1 ? U"\n" : U"";
-    }
-
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-    std::cout << converter.to_bytes(holder) << "\033[?7h";
-    std::cout << std::flush;
   }
-  inline void set(int x, int y, char32_t c) {
+
+  inline void set(int x, int y, wchar_t c) {
     if (x < 0 || x >= W || y < 0 || y >= H) {
       return;
     }
     _buffer[x + W * y] = c;
   }
-  inline void clear(char32_t c = U' ') {
-    for (auto &ch : _buffer) {
-      ch = c;
-    }
+
+  inline void clear(wchar_t c = U' ') {
+    _buffer.fill(c);
+    ::clear();
+    refresh();
   }
 
 private:
-  std::array<char32_t, W * H> _buffer;
+  std::array<wchar_t, W * H> _buffer;
 };

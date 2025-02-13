@@ -40,7 +40,7 @@ template <Particle P> struct ps {
 
 private:
   std::function<void(P &, float)> _updateParticle;
-  std::function<char32_t(const P &)> _getChar;
+  std::function<wchar_t(const P &)> _getChar;
   std::function<P(void)> _initializeParticle;
   std::function<void(P &)> _resetParticle;
   std::vector<P> _particles;
