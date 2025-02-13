@@ -1,6 +1,4 @@
 #pragma once
-#include "utf8.h"
-#include "utf8/checked.h"
 #include <array>
 #include <cassert>
 #include <codecvt>
@@ -10,19 +8,40 @@
 #include <iostream>
 #include <limits.h>
 #include <locale>
+#include <ncurses.h>
+#include <ostream>
 #include <string>
 
 template <int W, int H> struct fb {
   inline fb() : _buffer() {}
   inline void print() noexcept {
     std::cout << "\033[H\033[2J\033[3J\033[?7l";
+
+    initscr(); // this is *dumb*
+    int x, y;
+    getmaxyx(stdscr, y, x);
+    endwin();
+    x /= 2;
+    y /= 2;
+    x -= W / 2;
+    y -= H / 2;
+
+    for (int i = 0; i < y; i++) {
+      std::cout << "\n";
+    }
     std::u32string holder = U"";
+    std::u32string pad(std::max(x, 0), U' ');
+
     int c = 0;
     for (auto ch : _buffer) {
+      holder += c % W == 0 ? pad : U"";
       holder += ch;
       holder += c++ % W == W - 1 ? U"\n" : U"";
     }
-    std::cout << utf8::utf32to8(holder) << "\033[?7h";
+
+    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
+    std::cout << converter.to_bytes(holder) << "\033[?7h";
+    std::cout << std::flush;
   }
   inline void set(int x, int y, char32_t c) {
     if (x < 0 || x >= W || y < 0 || y >= H) {

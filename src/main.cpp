@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <ncurses.h>
 #include <random>
 
 const char32_t *cuppajoe = UR"(  ░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░       
@@ -26,17 +27,13 @@ struct Steam {
   int id;
 };
 
+void reset(Steam &s);
+
 Steam initialize() {
   static int id = 0;
-  static std::random_device rd{};
-  static std::mt19937 gen(rd());
-  static std::normal_distribution<float> d(0, 3);
   Steam s;
-  s.x = d(gen) + 13;
-  s.y = 18 + d(gen) / 5;
-  s.life = 200 + d(gen) * 15;
-  s.heat = 15;
   s.id = id++;
+  reset(s);
   return s;
 }
 
@@ -48,8 +45,8 @@ void update(Steam &s, float dt) {
   s.dy += (-s.heat * 0.7f + 0.1f) * dt;
   s.dx += d(gen) * 1.1f * dt;
 
-  s.dx += -s.dx * 0.01;
-  s.dy += -s.dy * 0.01;
+  s.dx += -s.dx * 0.01f;
+  s.dy += -s.dy * 0.01f;
 
   s.y += s.dy * dt;
   s.x += s.dx * dt;
@@ -72,7 +69,7 @@ void update(Steam &s, float dt) {
   }
   s.heat -= 2 * dt;
 
-  if (s.x < 0 || s.x >= 34 || s.y < 0 || s.y >= 30) {
+  if (s.x < 0 || s.x >= 34 || s.y < 0 || s.y >= 19) {
     s.life = 0;
   }
 }
@@ -101,7 +98,7 @@ using namespace std::chrono_literals;
 int main(void) {
   setlocale(LC_ALL, "en_US.UTF-8");
   fb<34, 30> buf;
-  ps<Steam> steam(1000, update, getChar, initialize, reset);
+  ps<Steam> steam(512, update, getChar, initialize, reset);
   stm = &steam;
   float dt = 1.0f;
   float t = 0.0f;
@@ -127,11 +124,12 @@ int main(void) {
     //
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::high_resolution_clock::now() - start);
-    syncTo(16ms, elapsed);
+    syncTo(33ms, elapsed);
     printf("\n\ntime: %f", t);
     dt = (std::chrono::duration_cast<std::chrono::duration<float>>(
               std::chrono::high_resolution_clock::now() - start))
              .count();
     t += dt;
+    wrefresh(stdscr);
   }
 }
