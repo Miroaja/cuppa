@@ -88,8 +88,8 @@ void update(Steam &s, float dt) {
 
 wchar_t getChar(const Steam &s) {
   constexpr std::array<wchar_t, 13> nnn = {
-      U'.', U'.', U'.', U'-', U'⡈', U'⡪', U'⣒',
-      U'⣕', U'⣫', U'⣿', U'░', U'▒', U'▓',
+      U'\'', U',', U'.', U':', U'⡈', U'⡪', U'⣒',
+      U'⣕',  U'⣫', U'⣿', U'░', U'▒', U'▓',
   };
   return nnn[std::clamp<int>(std::tanh(s.heat / 4.5) * 12, 0, nnn.size() - 1)];
 }
@@ -142,6 +142,7 @@ int main(int argc, const char **argv) {
   setlocale(LC_ALL, "");
   initscr();
   curs_set(0);
+  start_color();
   fb<34, 60> buf;
   ps<Steam> steam(partCount, update, getChar, initialize, reset);
   stm = &steam;
@@ -168,8 +169,10 @@ int main(int argc, const char **argv) {
     int yMax = getmaxy(stdscr);
     int y = (yMax - 60) / 2 + 43;
 
+    attron(A_ITALIC);
     mvaddwstr(std::clamp(y, 0, yMax - 2), std::max(x, 0),
-              L"    \033[3mEnjoy a good cuppa :)\033[0m");
+              L"    Enjoy a good cuppa :)");
+    attroff(A_ITALIC);
     refresh();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::high_resolution_clock::now() - start);
