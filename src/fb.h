@@ -18,6 +18,7 @@ template <int W, int H> struct fb {
     std::cout << "\033[H\033[2J\033[3J\033[?7l";
 
     initscr(); // this is *dumb*
+    wrefresh(stdscr);
     int x, y;
     getmaxyx(stdscr, y, x);
     endwin();

@@ -130,6 +130,5 @@ int main(void) {
               std::chrono::high_resolution_clock::now() - start))
              .count();
     t += dt;
-    wrefresh(stdscr);
   }
 }
