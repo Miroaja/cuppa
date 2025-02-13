@@ -97,6 +97,7 @@ void reset(Steam &s) {
 using namespace std::chrono_literals;
 int main(void) {
   setlocale(LC_ALL, "en_US.UTF-8");
+  initscr(); // this is *dumb*
   fb<34, 30> buf;
   ps<Steam> steam(512, update, getChar, initialize, reset);
   stm = &steam;
@@ -131,4 +132,5 @@ int main(void) {
              .count();
     t += dt;
   }
+  endwin();
 }

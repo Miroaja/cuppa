@@ -17,11 +17,9 @@ template <int W, int H> struct fb {
   inline void print() noexcept {
     std::cout << "\033[H\033[2J\033[3J\033[?7l";
 
-    initscr(); // this is *dumb*
     wrefresh(stdscr);
     int x, y;
     getmaxyx(stdscr, y, x);
-    endwin();
     x /= 2;
     y /= 2;
     x -= W / 2;
