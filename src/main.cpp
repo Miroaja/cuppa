@@ -165,7 +165,7 @@ int main(int argc, const char **argv) {
 
     steam.print(buf);
     buf.print();
-    int x = (getmaxx(stdscr) - 34) / 2;
+    int x = (getmaxx(stdscr) - 34) / 2 + 2;
     int yMax = getmaxy(stdscr);
     int y = (yMax - 60) / 2 + 43;
 

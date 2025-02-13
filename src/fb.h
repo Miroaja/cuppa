@@ -19,7 +19,7 @@ template <int W, int H> struct fb {
   inline void print() noexcept {
     int x, y;
     getmaxyx(stdscr, y, x);
-    x = (x - W) / 2;
+    x = (x - W) / 2 + 2;
     y = (y - H) / 2;
 
     for (int row = 0; row < H; ++row) {
