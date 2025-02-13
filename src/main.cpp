@@ -169,7 +169,7 @@ int main(int argc, const char **argv) {
     int y = (yMax - 60) / 2 + 43;
 
     mvaddwstr(std::clamp(y, 0, yMax - 2), std::max(x, 0),
-              L"    Enjoy a good 'cuppa :)");
+              L"    \033[3mEnjoy a good cuppa :)\033[0m");
     refresh();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::high_resolution_clock::now() - start);
