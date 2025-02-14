@@ -39,7 +39,6 @@ template <int W, int H> struct fb {
   inline void clear(wchar_t c = U' ') {
     _buffer.fill(c);
     ::clear();
-    refresh();
   }
 
 private:
