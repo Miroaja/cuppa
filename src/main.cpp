@@ -73,6 +73,8 @@ void update(Steam &s, float dt) {
           s.dy -= yLoss;
           s.heat -= hLoss;
           ss.heat += hLoss;
+        } else if (interactionCount >= 6) {
+          break;
         }
       }
     }
