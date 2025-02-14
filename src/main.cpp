@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <ncurses.h>
 #include <random>
+#include <stdexcept>
 
 const wchar_t *cuppajoe = LR"(  ░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░       
 ░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░      
@@ -60,8 +61,9 @@ void update(Steam &s, float dt) {
   if (stm) {
     for (Steam &ss : stm->particles()) {
       if (ss.id != s.id) {
-        if (fmax(fabs(ss.x - s.x), fabs(ss.y - s.y)) < 3.0f) {
-
+        int interactionCount = 0;
+        if (fmax(fabs(ss.x - s.x), fabs(ss.y - s.y)) < 3.0f &&
+            interactionCount++ < 6) {
           float xLoss = (s.dx + ss.dx) / 2.0f * dt * 0.3f;
           float yLoss = (s.dy + ss.dy) / 2.0f * dt * 0.3f;
           float hLoss = (s.heat + ss.heat) / 2.0f * dt * 0.3f;
@@ -124,6 +126,10 @@ int main(int argc, const char **argv) {
       partCount = std::stoi(arg, &pos);
       if (pos < arg.size()) {
         std::cerr << "Trailing characters after number: " << arg << '\n';
+        exit(1);
+      }
+      if (partCount <= 0) {
+        throw std::invalid_argument("Negative or zero number");
       }
     } catch (std::invalid_argument const &ex) {
       std::cerr << "Invalid number: " << arg << '\n';
