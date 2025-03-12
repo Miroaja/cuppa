@@ -36,10 +36,7 @@ template <int W, int H> struct fb {
     _buffer[x + W * y] = c;
   }
 
-  inline void clear(wchar_t c = U' ') {
-    _buffer.fill(c);
-    ::clear();
-  }
+  inline void clear(wchar_t c = U' ') { _buffer.fill(c); }
 
 private:
   std::array<wchar_t, W * H> _buffer;

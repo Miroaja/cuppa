@@ -1,7 +1,10 @@
 #pragma once
 #include "fb.h"
+#include <algorithm>
 #include <concepts>
+#include <execution>
 #include <functional>
+#include <ranges>
 #include <stdint.h>
 #include <vector>
 
@@ -12,10 +15,13 @@ concept Particle = requires(T a) {
   { a.life } -> std::convertible_to<int>;
 };
 
-template <Particle P> struct ps {
-  ps(int count, auto updater, auto charGetter, auto initializer, auto resetter)
-      : _updateParticle(updater), _getChar(charGetter),
-        _initializeParticle(initializer), _resetParticle(resetter) {
+template <Particle P, typename Data> struct ps {
+  inline ps(int count, auto updater, auto dUpdater, auto charGetter,
+            auto initializer, auto dataInitializer, auto resetter)
+      : _updateParticle(updater), _updateData(dUpdater), _getChar(charGetter),
+        _initializeParticle(initializer), _initializeData(dataInitializer),
+        _resetParticle(resetter) {
+    data = _initializeData();
     for (int i = 0; i < count; i++) {
       _particles.push_back(_initializeParticle());
     }
@@ -23,25 +29,43 @@ template <Particle P> struct ps {
 
   std::vector<P> &particles() { return _particles; }
 
-  void update(float dt) {
+  Data data;
+
+  inline void update(float dt) {
+    _updateData(data, dt);
+#if 0
+    const auto &range = std::ranges::views::iota(0, (int)_particles.size());
+    std::for_each(std::execution::par, range.begin(), range.end(),
+                  [this, dt](const auto &i) {
+                    if (_particles[i].life-- <= 0) {
+                      _resetParticle(_particles[i]);
+                    }
+                    _updateParticle(_particles[i], data, dt);
+                  }
+
+    );
+#else
     for (auto &p : _particles) {
       if (p.life-- <= 0) {
         _resetParticle(p);
       }
-      _updateParticle(p, dt);
+      _updateParticle(p, data, dt);
     }
+#endif
   }
 
-  template <int W, int H> void print(fb<W, H> &f) {
+  template <int W, int H> inline void print(fb<W, H> &f) {
     for (auto p : _particles) {
       f.set(p.x, p.y, _getChar(p));
     }
   }
 
 private:
-  std::function<void(P &, float)> _updateParticle;
+  std::function<void(P &, Data &, float)> _updateParticle;
+  std::function<void(Data &, float)> _updateData;
   std::function<wchar_t(const P &)> _getChar;
   std::function<P(void)> _initializeParticle;
+  std::function<Data(void)> _initializeData;
   std::function<void(P &)> _resetParticle;
   std::vector<P> _particles;
 };
