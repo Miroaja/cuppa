@@ -1,11 +1,12 @@
 pkgname="cuppa"
 pkgver="0.9.0"
+pkgrel="1"
 pkgdesc="A hot cuppa joe"
 url=https://github.com/Miroaja/cuppa
-arch=("x86_x64" "arm")
+arch=("x86_64" "arm")
 depends=("cmake" "ncurses")
 licence=("GPL-3.0-or-later")
-source=("$pkgname::git://github.com/linuxdeepin/dtkcore.git")
+source=("$pkgname::git+https://github.com/Miroaja/cuppa.git")
 sha512sums=("SKIP")
 
 build() {
@@ -16,5 +17,5 @@ build() {
 
 package() {
   cd $pkgname
-  make INSTALL_ROOT="$pkgdir" install
+  make DESTDIR="$pkgdir/" install
 }
