@@ -269,9 +269,8 @@ int main(int argc, const char **argv) {
               L"    Enjoy a good cuppa :)");
     attroff(A_ITALIC);
     refresh();
-    [[maybe_unused]] auto elapsed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::high_resolution_clock::now() - start);
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::high_resolution_clock::now() - start);
     syncTo(16ms, elapsed);
     dt = (std::chrono::duration_cast<std::chrono::duration<float>>(
               std::chrono::high_resolution_clock::now() - start))

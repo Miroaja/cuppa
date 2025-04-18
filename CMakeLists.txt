@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.5)
-# If only we had tooling
 project(terminal_particles)
 find_package(Curses REQUIRED)
 
