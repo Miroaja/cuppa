@@ -2,6 +2,7 @@
 #include "fb.h"
 #include <algorithm>
 #include <concepts>
+#include <cstddef>
 #include <execution>
 #include <functional>
 #include <ranges>
@@ -33,25 +34,13 @@ template <Particle P, typename Data> struct ps {
 
   inline void update(float dt) {
     _updateData(data, dt);
-#if 0
-    const auto &range = std::ranges::views::iota(0, (int)_particles.size());
-    std::for_each(std::execution::par, range.begin(), range.end(),
-                  [this, dt](const auto &i) {
-                    if (_particles[i].life-- <= 0) {
-                      _resetParticle(_particles[i]);
-                    }
-                    _updateParticle(_particles[i], data, dt);
-                  }
 
-    );
-#else
-    for (auto &p : _particles) {
-      if (p.life-- <= 0) {
-        _resetParticle(p);
+    for (size_t i = 0; i < _particles.size(); i++) {
+      if (_particles[i].life-- <= 0) {
+        _resetParticle(_particles[i]);
       }
-      _updateParticle(p, data, dt);
+      _updateParticle(_particles[i], data, dt);
     }
-#endif
   }
 
   template <int W, int H> inline void print(fb<W, H> &f) {

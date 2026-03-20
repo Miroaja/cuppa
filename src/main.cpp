@@ -7,10 +7,9 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
-#include <execution>
 #include <ncurses.h>
+#include <omp.h>
 #include <random>
-#include <ranges>
 #include <stdexcept>
 #include <tuple>
 
@@ -72,8 +71,8 @@ void update(Steam &s, SteamData &d, float dt) {
   auto &p = d.thermalLayer[std::clamp<int>(s.x, 0, WIDTH - 1) +
                            WIDTH * std::clamp<int>(s.y, 0, HEIGHT - 1)];
   std::tie(gx, gy) = d.gThermalLayer[s.x + WIDTH * s.y];
-  s.heat += p / 2.0f;
-  p *= 1.0f / 2.0f;
+  s.heat += p * 0.6f;
+  p *= 0.4f;
 
   s.dx += -s.dx * 0.1f * dt;
   s.dy += -s.dy * 0.1f * dt;
@@ -103,55 +102,53 @@ void update(Steam &s, SteamData &d, float dt) {
   }
   auto &p2 = d.thermalLayer[std::clamp<int>(s.x, 0, WIDTH - 1) +
                             WIDTH * std::clamp<int>(s.y, 0, HEIGHT - 1)];
-  p2 += s.heat * (4.0f / 8.0f);
-  s.heat *= 4.0f / 8.0f;
+  p2 += s.heat * 0.5f;
+  s.heat *= 0.5f;
 }
 
 void updateData(SteamData &d, float dt) {
-  const auto &range = std::ranges::views::iota(0, WIDTH * HEIGHT);
-  std::for_each(std::execution::par, range.begin(), range.end(),
-                [&d, dt](const auto &&i) {
-                  auto x = i % WIDTH, y = i / WIDTH;
+  return;
+#pragma omp parallel for
+  for (int i = 0; i < WIDTH * HEIGHT; i++) {
+    auto x = i % WIDTH, y = i / WIDTH;
 
-                  if (x == 0 || x == WIDTH - 1 || y == 0 || y == HEIGHT - 1) {
-                    d.thermalLayer[x + WIDTH * y] = 0;
-                    return;
-                  }
-                  d.thermalLayer[x + WIDTH * y] +=
-                      d.dThermalLayer[x + WIDTH * y] * dt;
-                });
+    if (x == 0 || x == WIDTH - 1 || y == 0 || y == HEIGHT - 1) {
+      d.thermalLayer[x + WIDTH * y] = 0;
+      d.dThermalLayer[x + WIDTH * y] = 0;
+      continue;
+    }
+    d.thermalLayer[x + WIDTH * y] += d.dThermalLayer[x + WIDTH * y] * dt;
+  }
 
-  std::for_each(
-      std::execution::par, range.begin(), range.end(), [&d](const auto &&i) {
-        auto x = i % WIDTH, y = i / WIDTH;
-        if (x == 0 || x == WIDTH - 1 || y == 0 || y == HEIGHT - 1) {
-          d.dThermalLayer[x + WIDTH * y] = 0;
-          return;
-        }
+#pragma omp parallel for
+  for (int i = 0; i < WIDTH * HEIGHT; i++) {
+    auto x = i % WIDTH, y = i / WIDTH;
 
-        float delta = 0.0f;
+    int left = x - 1;   // Left neighbor
+    int right = x + 1;  // Right neighbor
+    int top = y - 1;    // Top neighbor
+    int bottom = y + 1; // Bottom neighbor
 
-        int left = x - 1;   // Left neighbor
-        int right = x + 1;  // Right neighbor
-        int top = y - 1;    // Top neighbor
-        int bottom = y + 1; // Bottom neighbor
+    float currentTemp = d.thermalLayer[x + WIDTH * y];
+    auto gx = (d.thermalLayer[right + WIDTH * y] - 2 * currentTemp +
+               d.thermalLayer[left + WIDTH * y]) /
+              2.0f;
 
-        float currentTemp = d.thermalLayer[x + WIDTH * y];
-        auto gx = (d.thermalLayer[right + WIDTH * y] - 2 * currentTemp +
-                   d.thermalLayer[left + WIDTH * y]) /
-                  2.0f;
+    auto gy = (d.thermalLayer[x + WIDTH * bottom] - 2 * currentTemp +
+               d.thermalLayer[x + WIDTH * top]) /
+              2.0f;
 
-        auto gy = (d.thermalLayer[x + WIDTH * bottom] - 2 * currentTemp +
-                   d.thermalLayer[x + WIDTH * top]) /
-                  2.0f;
+    d.gThermalLayer[x + WIDTH * y] = {gx, gy};
+  }
+#pragma omp parallel for
+  for (int i = 0; i < WIDTH * HEIGHT; i++) {
+    auto [gx, gy] = d.gThermalLayer[i];
 
-        d.gThermalLayer[x + WIDTH * y] = {gx, gy};
+    float delta = gx + gy;
+    d.dThermalLayer[i] =
+        (2.5f * delta - std::max<float>(0.0001f * d.dThermalLayer[i], 0));
+  }
 
-        delta = gx + gy;
-        d.dThermalLayer[x + WIDTH * y] =
-            (2.5f * delta -
-             std::max<float>(0.0001f * d.dThermalLayer[x + WIDTH * y], 0));
-      });
   d.t += dt;
 }
 
@@ -177,7 +174,7 @@ void reset(Steam &s) {
     s.x += cosf(100000.0f * stm->data.t);
     s.y += cosf(5103000.0f * stm->data.t);
   }
-  s.heat = 8;
+  s.heat = 10;
 }
 
 static std::atomic_bool isDone = false;
@@ -215,6 +212,8 @@ int main(int argc, const char **argv) {
     exit(1);
   }
 
+  // omp_set_dynamic(1);
+  omp_set_num_threads(std::max(1, omp_get_max_threads() / 4));
   std::thread readerThread(stdinWatcher);
 
   setlocale(LC_ALL, "");
@@ -266,7 +265,7 @@ int main(int argc, const char **argv) {
 
     attron(A_ITALIC);
     mvaddwstr(std::clamp(y, 0, yMax - 2), std::max(x, 0),
-              L"    Enjoy a good cuppa :)");
+              L"    Enjoy a hot cuppajoe :)");
     attroff(A_ITALIC);
     refresh();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
