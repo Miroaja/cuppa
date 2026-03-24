@@ -38,6 +38,9 @@ struct Steam {
 constexpr int WIDTH = 34;
 constexpr int HEIGHT = 60;
 
+static int partCount;
+static bool enableHeatEq = false;
+
 struct SteamData {
   std::array<float, WIDTH * HEIGHT> thermalLayer;
   std::array<float, WIDTH * HEIGHT> dThermalLayer;
@@ -55,7 +58,7 @@ Steam initialize() {
   static std::random_device rd{};
   static std::mt19937 gen(rd());
   static std::normal_distribution<float> d(0, 3);
-  s.x = d(gen) * 1.5f + WIDTH / 2.0f - 2;
+  s.x = d(gen) * 1.5f + WIDTH / 2.0f - 2.5f;
   s.y = 32 + d(gen) / 5;
   s.ix = s.x;
   s.iy = s.y;
@@ -71,14 +74,13 @@ void update(Steam &s, SteamData &d, float dt) {
   auto &p = d.thermalLayer[std::clamp<int>(s.x, 0, WIDTH - 1) +
                            WIDTH * std::clamp<int>(s.y, 0, HEIGHT - 1)];
   std::tie(gx, gy) = d.gThermalLayer[s.x + WIDTH * s.y];
-  s.heat += p * 0.6f;
-  p *= 0.4f;
+  s.heat += p *= 0.5f;
 
   s.dx += -s.dx * 0.1f * dt;
   s.dy += -s.dy * 0.1f * dt;
 
-  s.dx += -gx * 5.0f * dt;
-  s.dy += -gy * 5.0f * dt;
+  s.dx += -gx * 7.0f * dt;
+  s.dy += -gy * 7.0f * dt;
 
   s.dy += (-s.heat * 0.7f + 0.1f) * dt;
   s.dx += cosf(s.heat * 100000.0f) * s.heat * 1.1f * dt;
@@ -102,12 +104,13 @@ void update(Steam &s, SteamData &d, float dt) {
   }
   auto &p2 = d.thermalLayer[std::clamp<int>(s.x, 0, WIDTH - 1) +
                             WIDTH * std::clamp<int>(s.y, 0, HEIGHT - 1)];
-  p2 += s.heat * 0.5f;
-  s.heat *= 0.5f;
+  p2 += s.heat *= 0.5f;
 }
 
 void updateData(SteamData &d, float dt) {
-  return;
+  if (!enableHeatEq) {
+    return;
+  }
 #pragma omp parallel for
   for (int i = 0; i < WIDTH * HEIGHT; i++) {
     auto x = i % WIDTH, y = i / WIDTH;
@@ -145,8 +148,8 @@ void updateData(SteamData &d, float dt) {
     auto [gx, gy] = d.gThermalLayer[i];
 
     float delta = gx + gy;
-    d.dThermalLayer[i] =
-        (2.5f * delta - std::max<float>(0.0001f * d.dThermalLayer[i], 0));
+    d.dThermalLayer[i] = (3.5f * delta);
+    d.thermalLayer[i] *= 0.99f;
   }
 
   d.t += dt;
@@ -164,17 +167,17 @@ void reset(Steam &s) {
   s.x = s.ix;
   s.y = s.iy;
   s.dx = 0;
-  s.dy = 0;
+  s.dy = -1;
   s.life = 300;
   if (stm) {
     auto &p =
         stm->data.thermalLayer[std::clamp<int>(s.x, 0, WIDTH - 1) +
                                WIDTH * std::clamp<int>(s.y, 0, HEIGHT - 1)];
-    p = 10;
+    s.heat = p;
+    p = 4.0 * 512.0 / (float)partCount + 6.0;
     s.x += cosf(100000.0f * stm->data.t);
     s.y += cosf(5103000.0f * stm->data.t);
   }
-  s.heat = 10;
 }
 
 static std::atomic_bool isDone = false;
@@ -187,33 +190,43 @@ void stdinWatcher() {
 
 using namespace std::chrono_literals;
 int main(int argc, const char **argv) {
-  int partCount = 512;
-  if (argc == 2) {
+  partCount = 512;
+  if (argc >= 2) {
     std::string arg = argv[1];
-    try {
-      std::size_t pos;
-      partCount = std::stoi(arg, &pos);
-      if (pos < arg.size()) {
-        std::cerr << "Trailing characters after number: " << arg << '\n';
+    if (arg == "-t" && argc != 3) {
+      enableHeatEq = true;
+    } else {
+
+      try {
+        std::size_t pos;
+        partCount = std::stoi(arg, &pos);
+        if (pos < arg.size()) {
+          std::cerr << "Trailing characters after number: " << arg << '\n';
+          exit(1);
+        }
+        if (partCount <= 0) {
+          throw std::invalid_argument("Negative or zero number");
+        }
+      } catch (std::invalid_argument const &ex) {
+        std::cerr << "Invalid number: " << arg << '\n';
+        exit(1);
+      } catch (std::out_of_range const &ex) {
+        std::cerr << "Number out of range: " << arg << '\n';
         exit(1);
       }
-      if (partCount <= 0) {
-        throw std::invalid_argument("Negative or zero number");
-      }
-    } catch (std::invalid_argument const &ex) {
-      std::cerr << "Invalid number: " << arg << '\n';
-      exit(1);
-    } catch (std::out_of_range const &ex) {
-      std::cerr << "Number out of range: " << arg << '\n';
-      exit(1);
     }
-  } else if (argc > 2) {
+  } else if (argc == 3) {
+    std::string arg = argv[2];
+    if (arg == "-t") {
+      enableHeatEq = true;
+    }
+  } else if (argc >= 3) {
     std::cerr << "Too many arguments!";
     exit(1);
   }
 
   // omp_set_dynamic(1);
-  omp_set_num_threads(std::max(1, omp_get_max_threads() / 4));
+  omp_set_num_threads(std::max(1, omp_get_max_threads() / 8));
   std::thread readerThread(stdinWatcher);
 
   setlocale(LC_ALL, "");
@@ -229,6 +242,7 @@ int main(int argc, const char **argv) {
   stm = &steam;
   float dt = 1.0f;
 
+  std::array<float, WIDTH * HEIGHT> tField = {};
   while (!isDone) {
     if (getch() == KEY_RESIZE) {
       ::clear();
@@ -246,17 +260,33 @@ int main(int argc, const char **argv) {
       for (int y = 0; y < HEIGHT; y++) {
         buf.set(
             x, y,
-            getChar({.heat = steam.data.thermalLayer[x + WIDTH * y] / 6.0f}));
+            getChar({.heat = steam.data.thermalLayer[x + WIDTH * y]}));
       }
     }
-#endif
-
+#else
     for (int x = WIDTH; x >= 0; x--) {
       for (int y = 0; y < 12; y++) {
         buf.set(x, y + HEIGHT / 2, cuppajoe[x + WIDTH * y]);
       }
     }
-    steam.print(buf);
+    tField.fill(0.0f);
+    for (const auto &p : steam.particles()) {
+      int x = p.x;
+      int y = p.y;
+      if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
+        continue;
+      }
+      tField[x + WIDTH * y] = std::max(tField[x + WIDTH * y], p.heat);
+    }
+    for (int x = 0; x < WIDTH; x++) {
+      for (int y = 0; y < HEIGHT; y++) {
+        auto c = getChar({.heat = tField[x + WIDTH * y]});
+        if (c != U' ') {
+          buf.set(x, y, c);
+        }
+      }
+    }
+#endif
 
     buf.print();
     int x = (getmaxx(stdscr) - 34) / 2 + 2;
