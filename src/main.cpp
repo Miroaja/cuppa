@@ -66,7 +66,7 @@ Steam initialize() {
   static std::mt19937 gen(rd());
   static std::normal_distribution<float> d(0, 2);
   s.x = d(gen) * 1.5f + WIDTH / 2.0f - 2.5f;
-  s.y = 34 + d(gen) / 5;
+  s.y = 31.5 + d(gen) / 2;
   s.ix = s.x;
   s.iy = s.y;
 
