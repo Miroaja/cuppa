@@ -133,6 +133,9 @@ void updateData(SteamData &d, float dt) {
 #pragma omp parallel for
   for (int i = 0; i < WIDTH * HEIGHT; i++) {
     auto x = i % WIDTH, y = i / WIDTH;
+    if (x == 0 || x == WIDTH - 1 || y == 0 || y == HEIGHT - 1) {
+      continue;
+    }
 
     int left = x - 1;   // Left neighbor
     int right = x + 1;  // Right neighbor
@@ -150,6 +153,7 @@ void updateData(SteamData &d, float dt) {
 
     d.gThermalLayer[x + WIDTH * y] = {gx, gy};
   }
+
 #pragma omp parallel for
   for (int i = 0; i < WIDTH * HEIGHT; i++) {
     auto [gx, gy] = d.gThermalLayer[i];
@@ -176,6 +180,7 @@ void reset(Steam &s) {
   s.dx = 0;
   s.dy = -10;
   s.life = 300;
+
   if (stm) {
     auto &p =
         stm->data.thermalLayer[std::clamp<int>(s.x, 0, WIDTH - 1) +
@@ -292,7 +297,11 @@ int main(int argc, const char **argv) {
     for (int x = WIDTH; x >= 0; x--) {
       for (int y = 2; y < 19; y++) {
         if (cuppajoe[x + WIDTH * y] == U'X') {
-          if (getChar({.heat = tField[x + WIDTH * (y + HEIGHT / 2)]}) == U' ') {
+          if (getChar(
+                  {.heat = tField[std::clamp<int>(x, 0, WIDTH) +
+                                  WIDTH * std::clamp<int>((y + HEIGHT / 2), 0,
+                                                          HEIGHT - 1)]}) ==
+              U' ') {
             buf.set(x, y + HEIGHT / 2, U'░');
           }
           continue;
