@@ -13,18 +13,25 @@
 #include <stdexcept>
 #include <tuple>
 
-const wchar_t *cuppajoe = LR"(  ░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░░       
-░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░      
-░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░      
-░░  ░░░░▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  ░░░    
-░░      ░░░░░░░░░░░░      ░  ░   
-░░                        ░  ░   
-  ░░                    ░░   ░   
-  ░░                    ░░   ░   
-   ░                  ░░░░░░░    
-   ░                ░░░░░        
-    ░░           ░░░░░░          
-      ░░░░░░░░░░░░░░░░           )";
+const wchar_t *cuppajoe = LR"(     _.---------------._          )"
+                          LR"( ,-''XXXXXXXXXXXXXXXXXXX''-.      )"
+                          LR"(|;XXXXXXXXXXXXXXXXXXXXXXXXX;|     )"
+                          LR"(|;--.XXXXXXXXXXXXXXXXXXX.--;|     )"
+                          LR"(|;   `-----------------`_.-----   )"
+                          LR"(|;                   -''__     \  )"
+                          LR"(|;                        \     \ )"
+                          LR"(|;                         \     |)"
+                          LR"(|;                         ;|    |)"
+                          LR"(|;                         ;|    |)"
+                          LR"(|;                         ;|    |)"
+                          LR"(|;                         ;|    |)"
+                          LR"(|;                         ;|    ⌡)"
+                          LR"(|;                         /    / )"
+                          LR"(|;                    <   /  __/  )"
+                          LR"(|;                     \_/--^     )"
+                          LR"(|;                         ;|     )"
+                          LR"( `||.                   .||`      )"
+                          LR"(     `;;;;;;;;;;;;;;;;;`          )";
 
 struct Steam {
   float x, y;
@@ -57,9 +64,9 @@ Steam initialize() {
 
   static std::random_device rd{};
   static std::mt19937 gen(rd());
-  static std::normal_distribution<float> d(0, 3);
+  static std::normal_distribution<float> d(0, 2);
   s.x = d(gen) * 1.5f + WIDTH / 2.0f - 2.5f;
-  s.y = 32 + d(gen) / 5;
+  s.y = 34 + d(gen) / 5;
   s.ix = s.x;
   s.iy = s.y;
 
@@ -92,7 +99,7 @@ void update(Steam &s, SteamData &d, float dt) {
 
   s.heat -= 2 * dt;
 
-  if (s.x < 0 || s.x >= WIDTH || s.y < 0 || s.y >= (int)(HEIGHT / 2) + 3) {
+  if (s.x < 0 || s.x >= WIDTH || s.y < 0 || s.y >= (int)(HEIGHT / 2) + 6) {
     s.life = 0;
   }
   if (s.dy >= 2.0f) {
@@ -167,7 +174,7 @@ void reset(Steam &s) {
   s.x = s.ix;
   s.y = s.iy;
   s.dx = 0;
-  s.dy = -1;
+  s.dy = -10;
   s.life = 300;
   if (stm) {
     auto &p =
@@ -226,7 +233,7 @@ int main(int argc, const char **argv) {
   }
 
   // omp_set_dynamic(1);
-  omp_set_num_threads(std::max(1, omp_get_max_threads() / 8));
+  omp_set_num_threads(std::max(1, omp_get_max_threads()));
   std::thread readerThread(stdinWatcher);
 
   setlocale(LC_ALL, "");
@@ -237,7 +244,7 @@ int main(int argc, const char **argv) {
   fb<34, 60> buf;
   ps<Steam, SteamData> steam(
       partCount, update, updateData, getChar, initialize,
-      []() { return SteamData{.thermalLayer = {0}, .dThermalLayer = {0}}; },
+      []() { return SteamData{.thermalLayer = {1.0f}, .dThermalLayer = {0}}; },
       reset);
   stm = &steam;
   float dt = 1.0f;
@@ -255,17 +262,13 @@ int main(int argc, const char **argv) {
               [](const Steam &a, const Steam &b) { return a.heat < b.heat; });
 
     buf.clear(U' ');
-#if 0
-    for (int x = 0; x < WIDTH; x++) {
-      for (int y = 0; y < HEIGHT; y++) {
-        buf.set(
-            x, y,
-            getChar({.heat = steam.data.thermalLayer[x + WIDTH * y]}));
-      }
-    }
-#else
+
     for (int x = WIDTH; x >= 0; x--) {
-      for (int y = 0; y < 12; y++) {
+      for (int y = 0; y < 2; y++) {
+        if (cuppajoe[x + WIDTH * y] == U'X') {
+          buf.set(x, y + HEIGHT / 2, U'░');
+          continue;
+        }
         buf.set(x, y + HEIGHT / 2, cuppajoe[x + WIDTH * y]);
       }
     }
@@ -286,16 +289,25 @@ int main(int argc, const char **argv) {
         }
       }
     }
-#endif
+    for (int x = WIDTH; x >= 0; x--) {
+      for (int y = 2; y < 19; y++) {
+        if (cuppajoe[x + WIDTH * y] == U'X') {
+          if (getChar({.heat = tField[x + WIDTH * (y + HEIGHT / 2)]}) == U' ') {
+            buf.set(x, y + HEIGHT / 2, U'░');
+          }
+          continue;
+        }
+        buf.set(x, y + HEIGHT / 2, cuppajoe[x + WIDTH * y]);
+      }
+    }
 
     buf.print();
-    int x = (getmaxx(stdscr) - 34) / 2 + 2;
+    int x = getmaxx(stdscr) / 2 - 4;
     int yMax = getmaxy(stdscr);
     int y = (yMax - 60) / 2 + 43;
 
     attron(A_ITALIC);
-    mvaddwstr(std::clamp(y, 0, yMax - 2), std::max(x, 0),
-              L"    Enjoy a hot cuppajoe :)");
+    mvaddwstr(std::clamp(y, 0, yMax - 2), std::max(x, 0), L"Enjoy :)");
     attroff(A_ITALIC);
     refresh();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
