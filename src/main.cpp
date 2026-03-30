@@ -238,7 +238,7 @@ int main(int argc, const char **argv) {
   }
 
   // omp_set_dynamic(1);
-  omp_set_num_threads(std::max(1, omp_get_max_threads()));
+  omp_set_num_threads(std::max(1, omp_get_max_threads() / 4));
   std::thread readerThread(stdinWatcher);
 
   setlocale(LC_ALL, "");
