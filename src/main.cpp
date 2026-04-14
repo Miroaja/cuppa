@@ -12,6 +12,7 @@
 #include <random>
 #include <stdexcept>
 #include <tuple>
+#include <vector>
 
 const wchar_t *cuppajoe = LR"(     _.---------------._          )"
                           LR"( ,-''XXXXXXXXXXXXXXXXXXX''-.      )"
@@ -36,10 +37,11 @@ const wchar_t *cuppajoe = LR"(     _.---------------._          )"
 struct Steam {
   float x, y;
   float dx, dy;
-  float ix, iy;
+  float iy;
   int life;
   float heat;
   int id;
+  uint64_t reset_count;
 };
 
 constexpr int WIDTH = 34;
@@ -47,6 +49,7 @@ constexpr int HEIGHT = 60;
 
 static int partCount;
 static bool enableHeatEq = false;
+static std::vector<float> initial_xs = {};
 
 struct SteamData {
   std::array<float, WIDTH * HEIGHT> thermalLayer;
@@ -56,6 +59,7 @@ struct SteamData {
 };
 
 void reset(Steam &s);
+ps<Steam, SteamData> *stm = nullptr;
 
 Steam initialize() {
   static int id = 0;
@@ -64,17 +68,16 @@ Steam initialize() {
 
   static std::random_device rd{};
   static std::mt19937 gen(rd());
-  static std::normal_distribution<float> d(0, 2);
+  static std::normal_distribution<float> d(0, 2.5);
   s.x = d(gen) * 1.5f + WIDTH / 2.0f - 2.5f;
   s.y = 31.5 + d(gen) / 2;
-  s.ix = s.x;
+  initial_xs.push_back(s.x);
   s.iy = s.y;
+  s.reset_count = 0;
 
   reset(s);
   return s;
 }
-
-ps<Steam, SteamData> *stm = nullptr;
 
 void update(Steam &s, SteamData &d, float dt) {
   float gx = 0.0f, gy = 0.0f;
@@ -91,8 +94,9 @@ void update(Steam &s, SteamData &d, float dt) {
 
   s.dy += (-s.heat * 0.7f + 0.1f) * dt;
   s.dx += cosf(s.heat * 100000.0f) * s.heat * 1.1f * dt;
-  s.dx += 0.5f * dt * cosf(d.t * 6.28318f / 10.0) * cosf(s.heat * 500000.0f) *
-          s.heat;
+  s.dx += 0.5f * dt * cosf(s.heat * 500000.0f) * s.heat;
+  s.dx += dt * cosf(d.t / 2.0f) * 16.0f *
+          sinf(s.y / HEIGHT * 3.1415f * 2.0f * 3.0f);
 
   s.y += s.dy * dt;
   s.x += s.dx * dt;
@@ -115,6 +119,7 @@ void update(Steam &s, SteamData &d, float dt) {
 }
 
 void updateData(SteamData &d, float dt) {
+  d.t += dt;
   if (!enableHeatEq) {
     return;
   }
@@ -162,8 +167,6 @@ void updateData(SteamData &d, float dt) {
     d.dThermalLayer[i] = (3.5f * delta);
     d.thermalLayer[i] *= 0.99f;
   }
-
-  d.t += dt;
 }
 
 wchar_t getChar(const Steam &s) {
@@ -171,11 +174,14 @@ wchar_t getChar(const Steam &s) {
       U' ', U'\'', U',', U'.', U':', U'⡈', U'⡪',
       U'⣒', U'⣕',  U'⣫', U'⣿', U'░', U'▒', U'▓',
   };
-  return nnn[std::clamp<int>(std::tanh(s.heat / 4.5) * 12, 0, nnn.size() - 1)];
+  return nnn[std::clamp<int>(
+      std::tanh(std::pow<float>(s.heat, 1.0f / 4.0f) * 5.0f) * 14.0f + 0.1, 0,
+      nnn.size() - 1)];
 }
 
 void reset(Steam &s) {
-  s.x = s.ix;
+  s.reset_count++;
+  s.x = initial_xs[(s.id + s.reset_count) % initial_xs.size()];
   s.y = s.iy;
   s.dx = 0;
   s.dy = -10;
@@ -185,10 +191,11 @@ void reset(Steam &s) {
     auto &p =
         stm->data.thermalLayer[std::clamp<int>(s.x, 0, WIDTH - 1) +
                                WIDTH * std::clamp<int>(s.y, 0, HEIGHT - 1)];
-    s.heat = p;
-    p = 4.0 * 512.0 / (float)partCount + 6.0;
-    s.x += cosf(100000.0f * stm->data.t);
-    s.y += cosf(5103000.0f * stm->data.t);
+    s.heat = p / (float)partCount;
+    p = 12.0f * (1.0f - 1.0f / partCount);
+    s.x += cosf(100000.12323f * stm->data.t);
+    s.y += cosf(5103000.126498f * stm->data.t);
+    s.dy += cosf(5103000.126498f * stm->data.t) * 2.0f;
   }
 }
 
@@ -202,7 +209,7 @@ void stdinWatcher() {
 
 using namespace std::chrono_literals;
 int main(int argc, const char **argv) {
-  partCount = 512;
+  partCount = 1024 * 5;
   if (argc >= 2) {
     std::string arg = argv[1];
     if (arg == "-t" && argc != 3) {
@@ -249,7 +256,11 @@ int main(int argc, const char **argv) {
   fb<34, 60> buf;
   ps<Steam, SteamData> steam(
       partCount, update, updateData, getChar, initialize,
-      []() { return SteamData{.thermalLayer = {1.0f}, .dThermalLayer = {0}}; },
+      []() {
+        return SteamData{.thermalLayer = {1.0f},
+                         .dThermalLayer = {0},
+                         .gThermalLayer = {std::pair{0.0f, 0.0f}}};
+      },
       reset);
   stm = &steam;
   float dt = 1.0f;
@@ -284,11 +295,11 @@ int main(int argc, const char **argv) {
       if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
         continue;
       }
-      tField[x + WIDTH * y] = std::max(tField[x + WIDTH * y], p.heat);
+      tField[x + WIDTH * y] += p.heat;
     }
     for (int x = 0; x < WIDTH; x++) {
       for (int y = 0; y < HEIGHT; y++) {
-        auto c = getChar({.heat = tField[x + WIDTH * y]});
+        auto c = getChar({.heat = tField[x + WIDTH * y] / (float)partCount});
         if (c != U' ') {
           buf.set(x, y, c);
         }

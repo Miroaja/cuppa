@@ -21,7 +21,7 @@ template <Particle P, typename Data> struct ps {
             auto initializer, auto dataInitializer, auto resetter)
       : _updateParticle(updater), _updateData(dUpdater), _getChar(charGetter),
         _initializeParticle(initializer), _initializeData(dataInitializer),
-        _resetParticle(resetter) {
+        _resetParticle(resetter), _particles({}) {
     data = _initializeData();
     for (int i = 0; i < count; i++) {
       _particles.push_back(_initializeParticle());
